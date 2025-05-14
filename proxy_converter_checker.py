@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import re
-import time
 from io import StringIO
 
 st.set_page_config(page_title="Proxy Converter & Checker", layout="centered")
@@ -16,7 +15,7 @@ check_live = st.checkbox("✅ Kiểm tra proxy live/die")
 
 timeout = st.slider("⏱️ Timeout khi kiểm tra (giây)", min_value=1, max_value=10, value=5)
 
-# Hàm chuyển đổi
+# Hàm chuyển đổi định dạng proxy
 def convert_line(line, mode):
     if mode == "IP:PORT:USER:PASS ➜ http":
         parts = line.strip().split(":")
@@ -30,7 +29,7 @@ def convert_line(line, mode):
             return f"{ip}:{port}:{user}:{pwd}"
     return None
 
-# Hàm kiểm tra proxy
+# Hàm kiểm tra proxy live hay die
 def is_proxy_live(proxy_url, timeout=5):
     try:
         proxies = {"http": proxy_url, "https": proxy_url}
@@ -43,10 +42,21 @@ def is_proxy_live(proxy_url, timeout=5):
 if st.button("🔥 Bắt đầu xử lý"):
     lines = input_text.strip().splitlines()
     results = []
+    live_list = []
+    dead_list = []
+
     for line in lines:
         conv = convert_line(line, convert_option)
         if conv:
-            status = "✅ LIVE" if check_live and is_proxy_live(conv, timeout) else ("❌ DIE" if check_live else "")
+            if check_live:
+                if is_proxy_live(conv, timeout):
+                    status = "✅ LIVE"
+                    live_list.append(conv)
+                else:
+                    status = "❌ DIE"
+                    dead_list.append(conv)
+            else:
+                status = ""
             results.append(f"{conv} {status}".strip())
         else:
             results.append(f"❗ Sai định dạng: {line}")
@@ -54,4 +64,17 @@ if st.button("🔥 Bắt đầu xử lý"):
     result_text = "\n".join(results)
     st.text_area("🎯 Kết quả:", result_text, height=300)
 
-    st.download_button("📥 Tải kết quả", data=result_text, file_name="converted_proxies.txt", mime="text/plain")
+    st.download_button("📥 Tải tất cả kết quả", data=result_text, file_name="converted_proxies.txt", mime="text/plain")
+
+    # Nếu có bật kiểm tra live
+    if check_live:
+        live_text = "\n".join(live_list)
+        die_text = "\n".join(dead_list)
+
+        st.subheader("✅ Proxy Live")
+        st.text_area("Live", live_text, height=200)
+        st.download_button("📥 Tải Live Proxy", data=live_text, file_name="live_proxies.txt", mime="text/plain")
+
+        st.subheader("❌ Proxy Die")
+        st.text_area("Die", die_text, height=200)
+        st.download_button("📥 Tải Die Proxy", data=die_text, file_name="dead_proxies.txt", mime="text/plain")
